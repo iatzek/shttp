@@ -30,7 +30,7 @@ namespace TCPSockets2
             NetworkStream ns; // strumien sieciowy "na gniezdzie"
             StreamReader sr;  // strumien do odbierania danych "na s.sieciowym"
             StreamWriter sw;  // strumien do wysylania danych "na s.sieciowym"
-            ThreadedHTTPServer server;
+			ThreadedHTTPServer server;
             string login;
 
             public string Login { get { return login; } }
@@ -45,32 +45,8 @@ namespace TCPSockets2
                 this.server = server;
             }
 
-            public void ProcessCommunication()
-            {
-                
-
-                String command = sr.ReadLine();
-				Regex commandProcessor = new Regex("(?<method>GET|POST|PUT|DELETE|HEAD) *(?<uri>[^ ]*) HTTP/(?<httpVersion>1.[012])");
-				Match commandParts = commandProcessor.Match(command);
-					
-				// dekoduj URL/URI (odzyskaj spaje itp.)
-				String uri = HttpUtility.UrlDecode(commandParts.Groups["uri"].Value);
-				// commandParts.Groups["method"] // GET/POST/PUT/DELETE/HEAD
-				// commandParts.Groups["httpVersion"] //1.0, 1.1, 1.2
-
-				// dekoduj nagłówki do słownika headers
-				Dictionary<String,String> headers = new Dictionary<String, String>();
-				Regex headerProcessor = new Regex("^(?<name>[^:]*): (?<content>.*)$");
-				while (true)
-				{
-					String line = sr.ReadLine();
-					if (line.Length == 0)
-						break;
-					Match x = headerProcessor.Match(line);
-					headers[x.Groups["name"].Value] = x.Groups["content"].Value;
-
-				}
-
+			private void GET(String uri, Dictionary<String, String> headers)
+			{
 				// generuj odpowiedź
 				sw.WriteLine("HTTP/1.1 200 OK");
 				sw.WriteLine("Content-Type: text/html");
@@ -82,12 +58,87 @@ namespace TCPSockets2
 				sw.WriteLine("Content-Length: {0}", bMessage.Length);
 				// wypisz stronę/body
 				sw.WriteLine();
-				sw.BaseStream.Write(bMessage, 0, bMessage.Length);
+				sw.BaseStream.Write(bMessage, 0, bMessage.Length);				
+			}
+			private void POST(String uri, Dictionary<String, String> headers, byte [] body)
+			{
+				sw.WriteLine("HTTP/1.1 405  Method Not Allowed");
+			}
+			private void PUT(String uri, Dictionary<String, String> headers, byte [] body)
+			{
+				sw.WriteLine("HTTP/1.1 405  Method Not Allowed");
+			}
+			private void DELETE(String uri, Dictionary<String, String> headers)
+			{
+				sw.WriteLine("HTTP/1.1 405  Method Not Allowed");
+			}
+
+            public void ProcessCommunication()
+            {
+                
+
+                String command = sr.ReadLine();
+				Regex commandProcessor = new Regex("(?<method>GET|POST|PUT|DELETE|HEAD) *(?<uri>[^ ]*) HTTP/(?<httpVersion>1.[012])");
+				if (!commandProcessor.IsMatch(command))
+				{
+					// brak dopasowania do komendy; lub właściwie 400 INVALID REQUEST
+					sw.WriteLine("HTTP/1.1 500 INTERNAL SERVER ERROR");
+					Disconnect();
+					server.RemoveClient(this);
+					return;
+				}
+				Match commandParts = commandProcessor.Match(command);
+					
+				// dekoduj URL/URI (odzyskaj spaje itp.)
+				String uri = HttpUtility.UrlDecode(commandParts.Groups["uri"].Value);
+				// commandParts.Groups["method"] // GET/POST/PUT/DELETE/HEAD
+				// commandParts.Groups["httpVersion"] //1.0, 1.1, 1.2
+
+
+				// dekoduj nagłówki do słownika headers
+				Dictionary<String,String> headers = new Dictionary<String, String>();
+				Regex headerProcessor = new Regex("^(?<name>[^:]*): (?<content>.*)$");
+				while (true)
+				{
+					String line = sr.ReadLine();
+					if (line.Length == 0)
+						break;
+					if (headerProcessor.IsMatch(line))
+					{
+						Match x = headerProcessor.Match(line);
+						headers[x.Groups["name"].Value] = x.Groups["content"].Value;
+					}
+
+				}
+
+				//wybierz metodę do obsługi
+				switch (commandParts.Groups["method"].ToString())
+				{
+				case "GET":
+				case "HEAD": //docelowo HEAD powinno mieć własną metodę
+					GET(uri, headers);
+					break;
+				case "DELETE":
+					DELETE(uri, headers);
+					break;
+				case "POST":
+					POST(uri, headers, null);
+					break;
+				case "PUT":
+					PUT(uri, headers, null);
+					break;
+				default:
+					throw new Exception("unknown method " + commandParts.Groups["method"]);
+				};
+
+						
+
 				sw.Flush();
 				// bye bye
                 Disconnect();
                 server.RemoveClient(this);
             }
+
 
             void Disconnect()
             {

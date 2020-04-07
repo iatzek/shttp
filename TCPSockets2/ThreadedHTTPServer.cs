@@ -103,6 +103,7 @@ namespace TCPSockets2
 				{
 					sw.WriteLine("HTTP/1.1 404 File Not Found");
 					//content length byłby wskazany
+					sw.WriteLine("Content-Type: text/html");
 					sw.WriteLine();
 					sw.WriteLine("<http><body>BUUU</body></html>");
 					return;

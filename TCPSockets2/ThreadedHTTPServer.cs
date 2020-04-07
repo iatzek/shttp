@@ -136,7 +136,7 @@ namespace TCPSockets2
 
                 String command = sr.ReadLine();
 				Regex commandProcessor = new Regex("(?<method>GET|POST|PUT|DELETE|HEAD) *(?<uri>[^ ]*) HTTP/(?<httpVersion>1.[012])");
-				if (!commandProcessor.IsMatch(command))
+				if (command == null || !commandProcessor.IsMatch(command))
 				{
 					// brak dopasowania do komendy
 					sw.WriteLine("HTTP/1.1 500 INTERNAL SERVER ERROR");

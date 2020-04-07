@@ -31,9 +31,10 @@ namespace TCPSockets2
             StreamReader sr;  // strumien do odbierania danych "na s.sieciowym"
             StreamWriter sw;  // strumien do wysylania danych "na s.sieciowym"
 			ThreadedHTTPServer server;
-            string login;
+            
+			const string BaseDirectory = @"d:";
 
-            public string Login { get { return login; } }
+            
 
             public ClientHelper(Socket socket, ThreadedHTTPServer server)
             {
@@ -44,21 +45,44 @@ namespace TCPSockets2
                 sw.AutoFlush = true;
                 this.server = server;
             }
-
+			// pozyczone z https://stackoverflow.com/questions/2030847/best-way-to-read-a-large-file-into-a-byte-array-in-c?utm_medium=organic&utm_source=google_rich_qa&utm_campaign=google_rich_qa
+			public byte[] FileToByteArray(string fileName)
+			{
+				byte[] buff = null;
+				FileStream fs = new FileStream(fileName, 
+					FileMode.Open, 
+					FileAccess.Read);
+				BinaryReader br = new BinaryReader(fs);
+				long numBytes = new FileInfo(fileName).Length;
+				buff = br.ReadBytes((int) numBytes);
+				return buff;
+			}
 			private void GET(String uri, Dictionary<String, String> headers)
 			{
 				// generuj odpowiedź
 				sw.WriteLine("HTTP/1.1 200 OK");
 				sw.WriteLine("Content-Type: text/html");
 
-				// strona z odpowiedzią
-				String message = "<html><head><title>Hello World</title><meta charset=\"utf-8\" /></head><body><h1>Hello World!</h1><p>ęółćżó! :)</p></body></html>";
-				byte [] bMessage = Encoding.UTF8.GetBytes(message);
-				// wypisz nagłówek długości
-				sw.WriteLine("Content-Length: {0}", bMessage.Length);
-				// wypisz stronę/body
-				sw.WriteLine();
-				sw.BaseStream.Write(bMessage, 0, bMessage.Length);				
+				//mało eleganckie
+				uri = BaseDirectory + uri.Replace(@"/", @"\");
+				//uri = BaseDirectory + uri;
+
+				try {
+					byte [] content = FileToByteArray(uri);
+
+					// wypisz nagłówek długości
+					sw.WriteLine("Content-Length: {0}", content.Length);
+					// wypisz stronę/body
+					sw.WriteLine();
+					sw.BaseStream.Write(content, 0, content.Length);	
+				} catch (FileNotFoundException e)
+				{
+					sw.WriteLine("HTTP/1.1 404 File Not Found");
+					//content length byłby wskazany
+					sw.WriteLine();
+					sw.WriteLine("<http><body>BUUU</body></html>");
+
+				}
 			}
 			private void POST(String uri, Dictionary<String, String> headers, byte [] body)
 			{
@@ -81,7 +105,7 @@ namespace TCPSockets2
 				Regex commandProcessor = new Regex("(?<method>GET|POST|PUT|DELETE|HEAD) *(?<uri>[^ ]*) HTTP/(?<httpVersion>1.[012])");
 				if (!commandProcessor.IsMatch(command))
 				{
-					// brak dopasowania do komendy; lub właściwie 400 INVALID REQUEST
+					// brak dopasowania do komendy
 					sw.WriteLine("HTTP/1.1 500 INTERNAL SERVER ERROR");
 					Disconnect();
 					server.RemoveClient(this);
@@ -115,7 +139,7 @@ namespace TCPSockets2
 				switch (commandParts.Groups["method"].ToString())
 				{
 				case "GET":
-				case "HEAD": //docelowo HEAD powinno mieć własną metodę
+				case "HEAD":
 					GET(uri, headers);
 					break;
 				case "DELETE":

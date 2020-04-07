@@ -33,6 +33,7 @@ namespace TCPSockets2
 			ThreadedHTTPServer server;
             
 			const string BaseDirectory = @"d:";
+			//const string BaseDirectory = @"/tmp";
 
             
 
@@ -59,34 +60,62 @@ namespace TCPSockets2
 			}
 			private void GET(String uri, Dictionary<String, String> headers)
 			{
-				// generuj odpowiedź
-				sw.WriteLine("HTTP/1.1 200 OK");
-				sw.WriteLine("Content-Type: text/html");
+
 
 				//dalej mało eleganckie
 				if (uri == "/")
 					uri = BaseDirectory + "/index.html";
 				else
 					uri = BaseDirectory + uri.Replace(@"/", @"\");
+					//uri = BaseDirectory + uri;
 				
 				//uri = BaseDirectory + uri;
-
+				// generuj odpowiedź
+				String ct = "";
+				switch (Path.GetExtension(uri).ToLower())
+				{
+				case "png":
+					ct = "image/png";
+					break;
+				case "jpg":
+				case "jpeg":
+				case "jfif":
+					ct = "image/jpg";
+					break;
+				case "txt":
+				case "text":
+				case "conf":
+					ct = "text/plain";
+					break;
+				case "html":
+					ct = "text/html";
+					break;
+				default:
+					sw.WriteLine("HTTP/1.1 503 Service Unavailable");
+					break;
+				}
+				byte [] content = null;
 				try {
-					byte [] content = FileToByteArray(uri);
+					content = FileToByteArray(uri);
 
-					// wypisz nagłówek długości
-					sw.WriteLine("Content-Length: {0}", content.Length);
-					// wypisz stronę/body
-					sw.WriteLine();
-					sw.BaseStream.Write(content, 0, content.Length);	
+	
 				} catch (FileNotFoundException e)
 				{
 					sw.WriteLine("HTTP/1.1 404 File Not Found");
 					//content length byłby wskazany
 					sw.WriteLine();
 					sw.WriteLine("<http><body>BUUU</body></html>");
-
+					return;
 				}
+
+
+				sw.WriteLine("HTTP/1.1 200 OK");
+				sw.WriteLine("Content-Type: " + ct);
+				// wypisz nagłówek długości
+				sw.WriteLine("Content-Length: {0}", content.Length);
+				// wypisz stronę/body
+				sw.WriteLine();
+				sw.BaseStream.Write(content, 0, content.Length);
 			}
 			private void POST(String uri, Dictionary<String, String> headers, byte [] body)
 			{

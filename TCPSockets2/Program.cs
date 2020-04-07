@@ -29,7 +29,7 @@ namespace TCPSockets2
             //server = new EchoServer(IPAddress.Parse("127.0.0.1"), 11000);
 
             // wersja wielowatkowa serwera echo
-            server = new ThreadedEchoServer(IPAddress.Parse("127.0.0.1"), 11000);
+            server = new ThreadedHTTPServer(IPAddress.Parse("127.0.0.1"), 11000);
 
             server.Start();
 

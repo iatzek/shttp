@@ -63,8 +63,12 @@ namespace TCPSockets2
 				sw.WriteLine("HTTP/1.1 200 OK");
 				sw.WriteLine("Content-Type: text/html");
 
-				//mało eleganckie
-				uri = BaseDirectory + uri.Replace(@"/", @"\");
+				//dalej mało eleganckie
+				if (uri == "/")
+					uri = BaseDirectory + "/index.html";
+				else
+					uri = BaseDirectory + uri.Replace(@"/", @"\");
+				
 				//uri = BaseDirectory + uri;
 
 				try {
